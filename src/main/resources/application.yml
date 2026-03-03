@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: DADUM-Server
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/dadum?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${SPRING_DATASOURCE_USERNAME:dadum}
+    password: ${SPRING_DATASOURCE_PASSWORD:dadum1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+    hibernate:
+
+      ddl-auto: ${JPA_DDL_AUTO:none}
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
