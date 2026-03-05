@@ -4,16 +4,23 @@ import com.dadumserver.common.util.JwtTokenProvider;
 import com.dadumserver.user.application.dto.LoginCommand;
 import com.dadumserver.user.application.dto.LoginResult;
 import com.dadumserver.user.application.dto.RefreshCommand;
+import com.dadumserver.user.domain.model.BlackList;
 import com.dadumserver.user.domain.model.User;
+import com.dadumserver.user.infrastructure.persistence.BlackListRepository;
 import com.dadumserver.user.infrastructure.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -21,6 +28,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class UserService {
   private final UserRepository userRepository;
+  private final BlackListRepository blackListRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
 
@@ -68,6 +76,94 @@ public class UserService {
     return issueTokens(user);
   }
 
+  public User getUser(UUID userId, UUID requesterId) {
+    authorizeSelf(requesterId, userId);
+    return findUserById(userId);
+  }
+
+  public List<User> getUsers() {
+    return userRepository.findAll();
+  }
+
+  @Transactional
+  public User createUser(String email, String rawPassword) {
+    String normalizedEmail = normalizeEmail(email);
+    String normalizedPassword = normalizePassword(rawPassword);
+    String emailHash = hashEmail(normalizedEmail);
+
+    if (blackListRepository.existsByUserEmailHashed(emailHash)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Signup is blocked for this email");
+    }
+
+    if (userRepository.existsByEmail(normalizedEmail)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+    }
+
+    User user = new User(
+        null,
+        normalizedEmail,
+        passwordEncoder.encode(normalizedPassword)
+    );
+
+    try {
+      return userRepository.saveAndFlush(user);
+    } catch (DataIntegrityViolationException exception) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+    }
+  }
+
+  @Transactional
+  public User updateUser(UUID userId, UUID requesterId, String email, String rawPassword) {
+    authorizeSelf(requesterId, userId);
+
+    User user = findUserById(userId);
+
+    String nextEmail = null;
+    if (!isBlank(email)) {
+      nextEmail = normalizeEmail(email);
+      if (!nextEmail.equals(user.getEmail()) && userRepository.existsByEmail(nextEmail)) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+      }
+    }
+
+    String nextPassword = null;
+    if (!isBlank(rawPassword)) {
+      nextPassword = passwordEncoder.encode(normalizePassword(rawPassword));
+    }
+
+    if (nextEmail == null && nextPassword == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nothing to update");
+    }
+
+    user.updateProfile(nextEmail, nextPassword);
+
+    try {
+      return userRepository.saveAndFlush(user);
+    } catch (DataIntegrityViolationException exception) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+    }
+  }
+
+  @Transactional
+  public void deleteUser(UUID userId, UUID requesterId) {
+    authorizeSelf(requesterId, userId);
+    User user = findUserById(userId);
+    userRepository.delete(user);
+  }
+
+  @Transactional
+  public void blacklistUser(UUID userId, UUID requesterId) {
+    authorizeSelf(requesterId, userId);
+    User user = findUserById(userId);
+    String emailHash = hashEmail(user.getEmail());
+
+    if (!blackListRepository.existsByUserEmailHashed(emailHash)) {
+      blackListRepository.save(new BlackList(emailHash, Instant.now()));
+    }
+
+    user.clearRefreshToken();
+  }
+
   private LoginResult issueTokens(User user) {
     String accessToken = jwtTokenProvider.generateAccessToken(user);
     String refreshToken = jwtTokenProvider.generateRefreshToken(user);
@@ -88,5 +184,44 @@ public class UserService {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  private void authorizeSelf(UUID requesterId, UUID targetUserId) {
+    if (!targetUserId.equals(requesterId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No permission for this user");
+    }
+  }
+
+  private User findUserById(UUID userId) {
+    return userRepository.findById(userId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+  }
+
+  private String normalizeEmail(String email) {
+    if (isBlank(email)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+    }
+    return email.trim().toLowerCase();
+  }
+
+  private String normalizePassword(String password) {
+    if (isBlank(password)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
+    }
+    return password.trim();
+  }
+
+  private String hashEmail(String email) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hashed = digest.digest(email.getBytes(StandardCharsets.UTF_8));
+      StringBuilder builder = new StringBuilder();
+      for (byte value : hashed) {
+        builder.append(String.format("%02x", value));
+      }
+      return builder.toString();
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("Unable to hash email", exception);
+    }
   }
 }

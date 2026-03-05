@@ -9,7 +9,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+    }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
@@ -18,7 +23,7 @@ public class User {
   @Column(name="user_id", nullable = false, updatable = false)
   private UUID id;
 
-  @Column(name="email", nullable = false)
+  @Column(name="email", nullable = false, unique = true)
   private String email;
 
   @Column(name="password", nullable = false)

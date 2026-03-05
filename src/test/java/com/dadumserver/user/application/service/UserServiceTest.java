@@ -5,6 +5,7 @@ import com.dadumserver.user.application.dto.LoginCommand;
 import com.dadumserver.user.application.dto.LoginResult;
 import com.dadumserver.user.application.dto.RefreshCommand;
 import com.dadumserver.user.domain.model.User;
+import com.dadumserver.user.infrastructure.persistence.BlackListRepository;
 import com.dadumserver.user.infrastructure.persistence.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,8 @@ class UserServiceTest {
   @Mock
   private UserRepository userRepository;
   @Mock
+  private BlackListRepository blackListRepository;
+  @Mock
   private JwtTokenProvider jwtTokenProvider;
 
   private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -38,7 +41,7 @@ class UserServiceTest {
 
   @BeforeEach
   void setUp() {
-    userService = new UserService(userRepository, passwordEncoder, jwtTokenProvider);
+    userService = new UserService(userRepository, blackListRepository, passwordEncoder, jwtTokenProvider);
   }
 
   @Test
@@ -125,5 +128,42 @@ class UserServiceTest {
     );
 
     assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+  }
+
+  @Test
+  void createUserThrowsForbiddenWhenEmailIsBlacklisted() {
+    when(blackListRepository.existsByUserEmailHashed(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+
+    ResponseStatusException exception = assertThrows(
+        ResponseStatusException.class,
+        () -> userService.createUser("blocked@example.com", "password1234")
+    );
+
+    assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+  }
+
+  @Test
+  void createUserSucceedsWhenEmailIsNotBlacklisted() {
+    User user = new User(UUID.randomUUID(), "ok@example.com", passwordEncoder.encode("password1234"));
+
+    when(blackListRepository.existsByUserEmailHashed(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
+    when(userRepository.existsByEmail("ok@example.com")).thenReturn(false);
+    when(userRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(User.class))).thenReturn(user);
+
+    User created = userService.createUser("ok@example.com", "password1234");
+    assertEquals("ok@example.com", created.getEmail());
+  }
+
+  @Test
+  void createUserThrowsConflictWhenEmailAlreadyExists() {
+    when(blackListRepository.existsByUserEmailHashed(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
+    when(userRepository.existsByEmail("dup@example.com")).thenReturn(true);
+
+    ResponseStatusException exception = assertThrows(
+        ResponseStatusException.class,
+        () -> userService.createUser("dup@example.com", "password1234")
+    );
+
+    assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
   }
 }
