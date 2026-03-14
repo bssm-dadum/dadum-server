@@ -5,7 +5,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -29,26 +28,19 @@ public class User {
   @Column(name="password", nullable = false)
   private String password;
 
-  @Column(name = "refresh_token", length = 255)
-  private String refreshToken;
-
-  @Column(name = "refresh_token_expires_at")
-  private Instant refreshTokenExpiresAt;
+  @Column(name = "role")
+  @Enumerated(EnumType.STRING)
+  private Role role;
 
   public User(UUID id, String email, String password) {
+    this(id, email, password, Role.user);
+  }
+
+  public User(UUID id, String email, String password, Role role) {
     this.id = id;
     this.email = email;
     this.password = password;
-  }
-
-  public void updateRefreshToken(String refreshToken, Instant refreshTokenExpiresAt) {
-    this.refreshToken = refreshToken;
-    this.refreshTokenExpiresAt = refreshTokenExpiresAt;
-  }
-
-  public void clearRefreshToken() {
-    this.refreshToken = null;
-    this.refreshTokenExpiresAt = null;
+    this.role = role;
   }
 
   public void updateProfile(String email, String password) {
