@@ -8,6 +8,12 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:dadum1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:2s}
+
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     open-in-view: false
