@@ -1,5 +1,6 @@
 package com.dadumserver.common.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -33,7 +34,8 @@ public class SecurityConfig {
             )
         )
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+            .requestMatchers("/error", "/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
             .requestMatchers("/user", "/user/**").hasAuthority(Role.admin.name())
             .anyRequest().authenticated()
         )

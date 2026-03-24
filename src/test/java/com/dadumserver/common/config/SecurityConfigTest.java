@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -60,6 +62,19 @@ class SecurityConfigTest {
                 {"email":"kim@example.com","password":"password1234"}
                 """))
         .andExpect(status().isCreated());
+  }
+
+  @Test
+  void signupValidationErrorDoesNotBecomeUnauthorized() throws Exception {
+    when(userService.createUser(anyString(), anyString()))
+        .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valid email is required"));
+
+    mockMvc.perform(post("/api/auth/signup")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"email":"string","password":"password1234"}
+                """))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
