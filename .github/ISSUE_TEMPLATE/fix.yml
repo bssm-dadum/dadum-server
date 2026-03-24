@@ -1,0 +1,47 @@
+name: Fix
+description: 버그 수정 및 문제 해결 관련 이슈
+title: "[Fix] "
+labels: ["bug", "fix"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🐛 버그 설명
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: 버그 내용
+      description: 어떤 문제가 발생했는지 자세히 작성해주세요.
+      placeholder: ex) 로그인 시 500 에러 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 기대 동작
+      description: 정상적으로 동작해야 하는 내용을 작성해주세요.
+      placeholder: ex) 정상적으로 로그인 되어야 함
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 재현 방법
+      description: 버그를 재현하는 방법을 단계별로 작성해주세요.
+      placeholder: |
+        1. 로그인 페이지 접속
+        2. 아이디 입력
+        3. 로그인 버튼 클릭
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 추가 정보
+      description: 로그, 스크린샷 등
