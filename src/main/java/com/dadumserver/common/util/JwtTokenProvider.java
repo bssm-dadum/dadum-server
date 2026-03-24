@@ -1,6 +1,7 @@
 package com.dadumserver.common.util;
 
 import com.dadumserver.common.config.JwtProperties;
+import com.dadumserver.user.domain.model.Role;
 import com.dadumserver.user.domain.model.User;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,6 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
   private static final String TOKEN_TYPE_CLAIM = "token_type";
+  private static final String ROLE_CLAIM = "role";
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
 
@@ -60,6 +62,18 @@ public class JwtTokenProvider {
     return UUID.fromString(parse(token).getPayload().getSubject());
   }
 
+  public Role getUserRole(String token) {
+    String role = parse(token).getPayload().get(ROLE_CLAIM, String.class);
+    if (role == null) {
+      return Role.user;
+    }
+    try {
+      return Role.valueOf(role);
+    } catch (IllegalArgumentException exception) {
+      return Role.user;
+    }
+  }
+
   public long getAccessTokenExpirationSeconds() {
     return jwtProperties.getAccessTokenExpirationSeconds();
   }
@@ -75,6 +89,7 @@ public class JwtTokenProvider {
     return Jwts.builder()
         .subject(user.getId().toString())
         .claim("email", user.getEmail())
+        .claim(ROLE_CLAIM, user.getRole() == null ? Role.user.name() : user.getRole().name())
         .claim(TOKEN_TYPE_CLAIM, tokenType)
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiresAt))
