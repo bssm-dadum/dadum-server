@@ -1,11 +1,24 @@
----
 name: Development
-about: 개발 관련 이슈를 자유롭게 작성합니다.
+description: 개발 관련 이슈를 작성합니다.
 title: "[Dev] "
-labels: development
-assignees: ""
----
+labels: ["development"]
+assignees: []
 
-## 내용
+body:
+  - type: textarea
+    id: overview
+    attributes:
+      label: "📌 개요 (Overview)"
+      description: "어떤 내용을 개발할 것이지 적어주세요"
+      placeholder: "예: 게시판 조회 API 개발"
+    validations:
+      required: true
 
-자유롭게 작성해 주세요.
+  - type: input
+    id: related
+    attributes:
+      label: "🔗 관련 이슈 / PR"
+      description: "관련된 이슈 번호 또는 PR을 작성하세요"
+      placeholder: "#123"
+    validations:
+      required: false
